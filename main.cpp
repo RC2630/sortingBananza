@@ -187,8 +187,11 @@ void merge(vector<T>& v, int low, int mid, int high) {
 			j++;
 		}
 	}
-	vector<vector<T>> frontMergeBack = {vecUtil::subvector(v, 0, low - 1), nv, vecUtil::subvector(v, high + 1, v.size() - 1)};
-	v = vecUtil::concatenate(frontMergeBack); // O(n) because frontMergeBack.size() == 3 (a fixed constant)
+  for (int i = low; i <= high; i++) {
+    v.at(i) = nv.at(i - low);
+  }
+	//vector<vector<T>> frontMergeBack = {vecUtil::subvector(v, 0, low - 1), nv, vecUtil::subvector(v, high + 1, v.size() - 1)};
+	//v = vecUtil::concatenate(frontMergeBack);
 }
 
 template <typename T>
@@ -282,7 +285,7 @@ int main() {
   cout << "\n" << fixed << setprecision(1);
   srand(time(nullptr));
 
-  int size = 10000;
+  int size = 20000;
   vector<double> raw = randomVector(size);
   vector<Number> v = numberify(raw);
   //cout << "v (before sorting) = " << v << "\n";
