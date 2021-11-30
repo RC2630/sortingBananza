@@ -1,4 +1,6 @@
 #include "vectorUtility.h"
+#include "parseArguments.h"
+#include "ansi_codes.h"
 
 #include <iostream>
 #include <numeric>
@@ -21,6 +23,10 @@ struct Number {
   bool operator < (const Number& other) {
     numOps++;
     return value < other.value;
+  }
+
+  bool operator <= (const Number& other) const { // use this to check that the vector is sorted only, do NOT use this to actually sort the vector
+    return value <= other.value;
   }
 
 };
@@ -263,42 +269,97 @@ void clear(vector<Number>& v) {
   }
 }
 
-template <typename Function>
-void sortAndDisplay(const vector<Number>& og, const Function& sortFunc, const string& sortAlgorithm) {
+typedef void (*SortingAlgorithm) (vector<Number>&);
+
+void sortAndDisplay(const vector<Number>& og, SortingAlgorithm sortFunc, const string& sortAlgorithm, int option, bool check) {
   vector<Number> v = og; // making a copy
   sortFunc(v);
-  //cout << "\nv (" << sortAlgorithm << ") = " << v << "\n";
+  if (option >= 3) { cout << fixed << setprecision(0) << "\nv (" << sortAlgorithm << ") = " << v << "\n" << fixed << setprecision(1); }
   int totalNumOps = accumulate(v.begin(), v.end(), 0);
   cout << "total # of comparison operations (<) for " << sortAlgorithm << " is on the order of 10^" << logarithm(totalNumOps, 10) << "\n";
+  if (check && !vecUtil::generallyIncreasing(v)) {
+    cout << ANSI_RED << "sorting success verification is enabled, but the vector is NOT sorted\n\n" << ANSI_NORMAL;
+    exit(EXIT_SUCCESS); // EXIT_FAILURE would be better, but I don't want too many error messages
+  }
 }
 
-vector<double> randomVector(int size) {
+int randint(int a, int b) {
+  return rand() % (b - a + 1) + a;
+}
+
+vector<double> randomVector(int size, int a, int b) {
   vector<double> v;
   for (int i = 1; i <= size; i++) {
-    v.push_back(rand() % 201 - 100); // range: from -100 to 100
+    v.push_back(randint(a, b));
   }
   return v;
 }
 
+/*
+// a function that doesn't actually sort the given vector (it's here to test that sort checking works correctly)
+void doNotSort(vector<Number>& v) {
+  for (int i = 0; i < v.size(); i++) {
+    if (v.at(i) < v.at(0)) {
+      swap(v.at(i), v.at(0));
+    }
+  }
+}
+*/
+
 int main() {
 
-  cout << "\n" << fixed << setprecision(1);
+  cout << fixed << setprecision(1)
+       << "\nOptions:\n(1) All sorting algorithms, (2) Only n*log(n) sorting algorithms"
+       << "\n(3) All sorting algorithms & display vector data, (4) Only n*log(n) sorting algorithms & display vector data"
+       << "\nNOTE: You can add 10 to the option to enable sorting success verification"
+       << "\n\nEnter command as \"/sort <option> <size> <smallest> <largest>\""
+       << "\nExample: \"/sort 1 10000 -100 100\" sorts a vector of size 10000 with elements ranging from -100 to 100 using all sorting algorithms"
+       << "\nExample: \"/sort 2 50 -20 20\" sorts a vector of size 50 with elements ranging from -20 to 20 using only n*log(n) sorting algorithms"
+       << "\n\nEnter your command here: ";
+
+  string command;
+  getline(cin >> ws, command);
   srand(time(nullptr));
 
-  int size = 20000;
-  vector<double> raw = randomVector(size);
-  vector<Number> v = numberify(raw);
-  //cout << "v (before sorting) = " << v << "\n";
-  cout << "size of vector to sort (n) = " << size << "\n\n";
+  int option = parse::parseNumericalArgument(command, 1);
+  int size = parse::parseNumericalArgument(command, 2);
+  int a = parse::parseNumericalArgument(command, 3);
+  int b = parse::parseNumericalArgument(command, 4);
 
-  sortAndDisplay(v, insertionSort, "insertion sort");
-  sortAndDisplay(v, bubbleSort, "bubble sort");
-  sortAndDisplay(v, standardSort, "std::sort");
-  sortAndDisplay(v, selectionSort, "selection sort");
-  sortAndDisplay(v, mergeSortAll<Number>, "merge sort");
-  sortAndDisplay(v, MinHeapQueue::heapsort, "heap sort");
-  sortAndDisplay(v, quicksortAll, "quick sort");
-  sortAndDisplay(v, standardQuicksort, "std::qsort");
+  bool check = option > 10;
+  option %= 10;
+
+  vector<double> raw = randomVector(size, a, b);
+  vector<Number> v = numberify(raw);
+  if (option >= 3) { cout << fixed << setprecision(0) << "\nv (before sorting) = " << v << fixed << setprecision(1); }
+  cout << "\nsize of vector to sort (n) = " << size << "\n";
+  if (check) { cout << "sorting success verification is enabled\n"; }
+  if (option <= 2) { cout << "\n"; }
+
+  typedef vector<pair<SortingAlgorithm, string>> SortingAlgorithmList;
+
+  SortingAlgorithmList sa = {
+
+    {insertionSort, "insertion sort"},
+    {bubbleSort, "bubble sort"},
+    {standardSort, "std::sort"},
+    {selectionSort, "selection sort"},
+    {mergeSortAll<Number>, "merge sort"},
+    {MinHeapQueue::heapsort, "heap sort"},
+    {quicksortAll, "quick sort"},
+    {standardQuicksort, "std::qsort"}
+  
+  };
+
+  SortingAlgorithmList sa_nlogn = {sa.at(2), sa.at(4), sa.at(5), sa.at(6), sa.at(7)};
+  SortingAlgorithmList& rsa = (option % 2 == 1) ? sa : sa_nlogn;
+
+  //rsa.insert(rsa.begin() + 3, {doNotSort, "do not sort"}); // this line is for testing sort checking
+
+  for (const auto& sortingAlgorithm : rsa) {
+    sortAndDisplay(v, sortingAlgorithm.first, sortingAlgorithm.second, option, check);
+  }
+
   cout << "\n";
   
 }
